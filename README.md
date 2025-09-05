@@ -1,3 +1,3 @@
-##MIR Segmentation project
+#MIR Segmentation project
 
 Hello
