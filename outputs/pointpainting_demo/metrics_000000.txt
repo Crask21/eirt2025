@@ -1,0 +1,13 @@
+PointPainting Metrics for Sample 000000
+==================================================
+
+Total points: 115384
+Number of classes: 4
+Mean confidence: 0.879
+Std confidence: 0.263
+
+Class Distribution:
+  background: 97048 points (84.1%)
+  car: 390 points (0.3%)
+  pedestrian: 3245 points (2.8%)
+  cyclist: 14701 points (12.7%)
