@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
-from torchvision.models.segmentation import deeplabv3_resnet50
+from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
 import numpy as np
 from typing import Union, List, Optional, Tuple
 import logging
@@ -62,8 +62,11 @@ class SemanticSegmentationModel:
     def _create_model(self, pretrained: bool) -> nn.Module:
         """Create the segmentation model."""
         if self.model_name == "deeplabv3_resnet50":
-            model = deeplabv3_resnet50(pretrained=pretrained)
-            
+            if pretrained == True:
+                model = deeplabv3_resnet50(weights=DeepLabV3_ResNet50_Weights.DEFAULT)
+            else:
+                model = deeplabv3_resnet50(pretrained=pretrained)
+
             # Modify classifier for custom number of classes
             if self.num_classes != 21:  # COCO has 21 classes by default
                 model.classifier[-1] = nn.Conv2d(

@@ -300,7 +300,7 @@ def main():
     parser.add_argument(
         "--kitti_root", 
         type=str,
-        default="D:/datasets/kitti",
+        default="F:/datasets/kitti",
         help="Root directory of KITTI dataset"
     )
     parser.add_argument(
@@ -311,7 +311,7 @@ def main():
     parser.add_argument(
         "--sample_id",
         type=str,
-        default="000000",
+        default="000100",
         help="Sample ID to process"
     )
     parser.add_argument(
