@@ -1,5 +1,8 @@
+import bpy
 
 class Object:
-    def __init__(self, name, location=(0, 0, 0), rotation=(0, 0, 0), scale=(1, 1, 1)):
-        self.name = name
-        self.location = location
+    def __init__(self, object: bpy.types.Object):
+        self.name = object.name
+        self.location = object.location
+        self.rotation = object.rotation_euler
+        self.scale = object.scale
