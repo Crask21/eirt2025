@@ -1,10 +1,7 @@
 import bpy
 import random
 
-from object import Object
-from background import Background
-from objectLoader import ObjectLoader
-from backgroundLoader import BackgroundLoader
+
 
 
 class Background:

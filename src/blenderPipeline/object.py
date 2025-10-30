@@ -61,12 +61,6 @@ bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, location=(0.0, 0.0
 obj = bpy.context.active_object
 
 obj = Object(obj, 1, "ExampleClass")
-# print(f"Object Name: {obj.name}")
-# print(f"Object Location: {obj.location}")
-# print(f"Object Rotation: {obj.rotation}")
-# print(f"Object Scale: {obj.scale}")
-# print(f"Object Class: {obj.obj_class}")
-# print(f"Object Class ID: {obj.class_id}")
 obj.setKeyframe((1, 2, 3), (0.5, 0.5, 0.5), (1, 1, 1), frame=10)
 obj.setKeyframe((4, 5, 6), (1.0, 1.0, 1.0), (2, 2, 2), frame=20)
 
