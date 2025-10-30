@@ -1,5 +1,6 @@
 import bpy
-from typing import overload
+
+
 class Object:
     def __init__(self, obj: bpy.types.Object, class_id: int, class_name: str):
         self.obj = obj
@@ -17,13 +18,13 @@ class Object:
         self.default_scale = obj.scale.copy()
         self.setKeyframe(self.default_location, self.default_rotation, self.default_scale, frame=0)
 
-    def setPosition(self, position):
+    def setPosition(self, position: tuple[float, float, float]):
         self.obj.location = position
 
-    def setRotation(self, rotation):
+    def setRotation(self, rotation: tuple[float, float, float]):
         self.obj.rotation_euler = rotation
 
-    def setScale(self, scale):
+    def setScale(self, scale: tuple[float, float, float]):
         self.obj.scale = scale
     
     def clearPosition(self):
