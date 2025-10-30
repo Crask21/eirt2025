@@ -10,7 +10,6 @@ class ObjectLoader:
     def __init__(self, DatabasePath: str, debug: bool = False):
         self.allowed_extensions = [".obj", ".stl", ".ply"]
         self.DatabasePath = Path(DatabasePath)
-        self.debug = debug
         if debug:
             print(f"[INFO] DatabasePath set to: {self.DatabasePath}")
         self.Classes = self.read_classes()
@@ -21,55 +20,6 @@ class ObjectLoader:
         if debug:
             print(f"[INFO] TotalObjects found: {self.TotalObjects}")
         self.AllObjects = self.FindAllObjects()
-
-# ------------------------------- Create Object ------------------------------ #
-    def CreateObject(self, ObjIndex=None, class_name: str = None):
-        """
-        Create an object from the database.
-        Args:
-            ObjIndex (int, optional): Index of the object to load. Defaults to None.
-            class_name (str, optional): Class name to load the object from. Defaults to None
-        """
-        if class_name:
-            objects = self.ObjectsByClass.get(class_name, [])
-            if ObjIndex is not None and 0 <= ObjIndex < len(objects):
-                obj_path = str(objects[ObjIndex])  # Convert Path to string
-                # Try different import methods based on file extension
-                if obj_path.lower().endswith('.stl'):
-                    bpy.ops.wm.stl_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.obj'):
-                    bpy.ops.wm.obj_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.ply'):
-                    # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
-                    try:
-                        bpy.ops.sna.dgs_render_import_ply_bf139(
-                            'EXEC_DEFAULT', filepath=obj_path)
-                    except:
-                        # Fall back to regular PLY import if not a 3DGS file
-                        bpy.ops.wm.ply_import(filepath=obj_path)
-
-                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
-
-        elif class_name is None and ObjIndex is not None:
-            if 0 <= ObjIndex < len(self.AllObjects):
-                # Convert Path to string
-                obj_path = str(self.AllObjects[ObjIndex])
-                # Try different import methods based on file extension
-                if obj_path.lower().endswith('.stl'):
-                    bpy.ops.wm.stl_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.obj'):
-                    bpy.ops.wm.obj_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.ply'):
-                    # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
-                    try:
-                        bpy.ops.sna.dgs_render_import_ply_bf139(
-                            'EXEC_DEFAULT', filepath=obj_path)
-                    except:
-                        # Fall back to regular PLY import if not a 3DGS file
-                        bpy.ops.wm.ply_import(filepath=obj_path)
-
-                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
-        raise ValueError("Invalid ObjIndex or class_name")
 
     def organize_objects_by_class(self) -> dict[str, list[Path]]:
         """Organize objects into a dictionary by their class (folder name).
@@ -119,7 +69,87 @@ class ObjectLoader:
                     object_list.append(Path(root) / file)
         return object_list
 
-# --------------------------- 3DGS Camera Updates ---------------------------- #
+    def CreateObject(self, ObjIndex=None, class_name: str = None):
+        """
+        Create an object from the database.
+        Args:
+            ObjIndex (int, optional): Index of the object to load. Defaults to None.
+            class_name (str, optional): Class name to load the object from. Defaults to None
+        """
+        if class_name:
+            objects = self.ObjectsByClass.get(class_name, [])
+            if ObjIndex is not None and 0 <= ObjIndex < len(objects):
+                obj_path = str(objects[ObjIndex])  # Convert Path to string
+                # Try different import methods based on file extension
+                if obj_path.lower().endswith('.stl'):
+                    bpy.ops.wm.stl_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.obj'):
+                    bpy.ops.wm.obj_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.ply'):
+                    # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
+                    try:
+                        bpy.ops.sna.dgs_render_import_ply_bf139(
+                            'EXEC_DEFAULT', filepath=obj_path)
+                    except:
+                        # Fall back to regular PLY import if not a 3DGS file
+                        bpy.ops.wm.ply_import(filepath=obj_path)
+
+                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+        elif class_name is None and ObjIndex is not None:
+            if 0 <= ObjIndex < len(self.AllObjects):
+                # Convert Path to string
+                obj_path = str(self.AllObjects[ObjIndex])
+                # Try different import methods based on file extension
+                if obj_path.lower().endswith('.stl'):
+                    bpy.ops.wm.stl_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.obj'):
+                    bpy.ops.wm.obj_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.ply'):
+                    # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
+                    try:
+                        bpy.ops.sna.dgs_render_import_ply_bf139(
+                            'EXEC_DEFAULT', filepath=obj_path)
+                    except:
+                        # Fall back to regular PLY import if not a 3DGS file
+                        bpy.ops.wm.ply_import(filepath=obj_path)
+
+                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+        raise ValueError("Invalid ObjIndex or class_name")
+
+    def CreateGaussianSplat(self, ObjIndex=None, class_name: str = None):
+        """
+        Create a 3D Gaussian Splat object from the database using the kiri_3dgs addon.
+        This method specifically uses the 3DGS importer for PLY files.
+
+        Args:
+            ObjIndex (int, optional): Index of the object to load. Defaults to None.
+            class_name (str, optional): Class name to load the object from. Defaults to None
+
+        Returns:
+            Object: The imported 3DGS object or None if failed
+        """
+        obj_path = None
+
+        if class_name:
+            objects = self.ObjectsByClass.get(class_name, [])
+            if ObjIndex is not None and 0 <= ObjIndex < len(objects):
+                obj_path = str(objects[ObjIndex])
+        elif class_name is None and ObjIndex is not None:
+            if 0 <= ObjIndex < len(self.AllObjects):
+                obj_path = str(self.AllObjects[ObjIndex])
+
+        if obj_path and obj_path.lower().endswith('.ply'):
+            try:
+                # Use the kiri_3dgs importer for 3DGS PLY files
+                bpy.ops.sna.dgs_render_import_ply_bf139(
+                    'EXEC_DEFAULT', filepath=obj_path)
+                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+            except Exception as e:
+                print(f"Error loading 3DGS file {obj_path}: {e}")
+                return None
+        else:
+            raise ValueError("File must be a PLY file for 3DGS import")
+
     def EnableCameraUpdates(self, obj=None):
         """
         Enable camera updates for a 3DGS object. This makes the object update 
@@ -185,60 +215,12 @@ class ObjectLoader:
             'EXEC_DEFAULT')
         print("Updated all camera-enabled 3DGS objects")
 
-    def ListAllObjects(self):
-        """
-        List all objects currently in the Blender scene.
-
-        Returns:
-            list: of dictionaries with object information (if detailed=True)
-        """
-        objects_info = []
-        for obj in bpy.context.scene.objects:
-            obj_info = {
-                'name': obj.name,
-                'type': obj.type,
-                'location': tuple(obj.location),
-                'is_3dgs': 'KIRI_3DGS_Render_GN' in [mod.name for mod in obj.modifiers] if obj.type == 'MESH' else False
-            }
-            objects_info.append(obj_info)
-
-        # Debug print:
-        if self.debug:
-            print(f"Found {len(objects_info)} objects in scene:")
-            for obj_info in objects_info:
-                status = "ACTIVE" if obj_info['name'] == bpy.context.view_layer.objects.active.name else ""
-                print(
-                    f"  - {obj_info['name']} [{obj_info['type']}]{' [3DGS]' if obj_info['is_3dgs'] else ''} {status}")
-        return objects_info
-
-    def GetObjectByName(self, name):
-        """
-        Get a Blender object by its name.
-
-        Args:
-            name (str): Name of the object to find
-
-        Returns:
-            bpy.types.Object or None: The object if found, None otherwise
-        """
-        obj = bpy.data.objects.get(name)
-        if obj:
-            print(f"Found object: {name}")
-            return obj
-        else:
-            print(f"Object '{name}' not found")
-            return None
-
-
 # ---------------------------------------------------------------------------- #
 #                                    Blender                                   #
 # ---------------------------------------------------------------------------- #
 
+
 # Example usage
 path = "test_dir"
 object_loader = ObjectLoader(path, True)
-object_loader.UpdateAllCameraEnabledObjects()
-# object_loader.CreateObject(ObjIndex=2, class_name="chair")
-# object_loader.EnableCameraUpdates()
-# object_loader.UpdateActiveToView()
-# object_loader.DisableCameraUpdates()
+object_loader.CreateObject(ObjIndex=2, class_name="chair")
