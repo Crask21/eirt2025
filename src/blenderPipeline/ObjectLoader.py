@@ -1,13 +1,16 @@
 import bpy
 import os
 from pathlib import Path
-
+bpy.ops.preferences.addon_enable(module="kiri_3dgs")
 
 # ------------------------------- ObjectLoader ------------------------------- #
+
+
 class ObjectLoader:
     def __init__(self, DatabasePath: str, debug: bool = False):
         self.allowed_extensions = [".obj", ".stl", ".ply"]
         self.DatabasePath = Path(DatabasePath)
+        self.debug = debug
         if debug:
             print(f"[INFO] DatabasePath set to: {self.DatabasePath}")
         self.Classes = self.read_classes()
@@ -18,6 +21,55 @@ class ObjectLoader:
         if debug:
             print(f"[INFO] TotalObjects found: {self.TotalObjects}")
         self.AllObjects = self.FindAllObjects()
+
+# ------------------------------- Create Object ------------------------------ #
+    def CreateObject(self, ObjIndex=None, class_name: str = None):
+        """
+        Create an object from the database.
+        Args:
+            ObjIndex (int, optional): Index of the object to load. Defaults to None.
+            class_name (str, optional): Class name to load the object from. Defaults to None
+        """
+        if class_name:
+            objects = self.ObjectsByClass.get(class_name, [])
+            if ObjIndex is not None and 0 <= ObjIndex < len(objects):
+                obj_path = str(objects[ObjIndex])  # Convert Path to string
+                # Try different import methods based on file extension
+                if obj_path.lower().endswith('.stl'):
+                    bpy.ops.wm.stl_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.obj'):
+                    bpy.ops.wm.obj_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.ply'):
+                    # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
+                    try:
+                        bpy.ops.sna.dgs_render_import_ply_bf139(
+                            'EXEC_DEFAULT', filepath=obj_path)
+                    except:
+                        # Fall back to regular PLY import if not a 3DGS file
+                        bpy.ops.wm.ply_import(filepath=obj_path)
+
+                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+
+        elif class_name is None and ObjIndex is not None:
+            if 0 <= ObjIndex < len(self.AllObjects):
+                # Convert Path to string
+                obj_path = str(self.AllObjects[ObjIndex])
+                # Try different import methods based on file extension
+                if obj_path.lower().endswith('.stl'):
+                    bpy.ops.wm.stl_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.obj'):
+                    bpy.ops.wm.obj_import(filepath=obj_path)
+                elif obj_path.lower().endswith('.ply'):
+                    # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
+                    try:
+                        bpy.ops.sna.dgs_render_import_ply_bf139(
+                            'EXEC_DEFAULT', filepath=obj_path)
+                    except:
+                        # Fall back to regular PLY import if not a 3DGS file
+                        bpy.ops.wm.ply_import(filepath=obj_path)
+
+                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+        raise ValueError("Invalid ObjIndex or class_name")
 
     def organize_objects_by_class(self) -> dict[str, list[Path]]:
         """Organize objects into a dictionary by their class (folder name).
@@ -67,49 +119,126 @@ class ObjectLoader:
                     object_list.append(Path(root) / file)
         return object_list
 
-    def CreateObject(self, ObjIndex=None, class_name: str = None):
+# --------------------------- 3DGS Camera Updates ---------------------------- #
+    def EnableCameraUpdates(self, obj=None):
         """
-        Create an object from the database.
+        Enable camera updates for a 3DGS object. This makes the object update 
+        its view automatically when the camera moves.
+
         Args:
-            ObjIndex (int, optional): Index of the object to load. Defaults to None.
-            class_name (str, optional): Class name to load the object from. Defaults to None
+            obj: Blender object to enable camera updates for. If None, uses active object.
         """
-        if class_name:
-            objects = self.ObjectsByClass.get(class_name, [])
-            if ObjIndex is not None and 0 <= ObjIndex < len(objects):
-                obj_path = str(objects[ObjIndex])  # Convert Path to string
-                # Try different STL import methods based on file extension
-                if obj_path.lower().endswith('.stl'):
-                    bpy.ops.wm.stl_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.obj'):
-                    bpy.ops.wm.obj_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.ply'):
-                    bpy.ops.wm.ply_import(filepath=obj_path)
+        if obj is None:
+            obj = bpy.context.view_layer.objects.active
 
-                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
-        elif class_name is None and ObjIndex is not None:
-            if 0 <= ObjIndex < len(self.AllObjects):
-                # Convert Path to string
-                obj_path = str(self.AllObjects[ObjIndex])
-                # Try different STL import methods based on file extension
-                if obj_path.lower().endswith('.stl'):
-                    bpy.ops.wm.stl_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.obj'):
-                    bpy.ops.wm.obj_import(filepath=obj_path)
-                elif obj_path.lower().endswith('.ply'):
-                    bpy.ops.wm.ply_import(filepath=obj_path)
+        if obj and 'KIRI_3DGS_Render_GN' in obj.modifiers:
+            # Set the update mode to 'Enable Camera Updates'
+            obj.sna_kiri3dgs_active_object_update_mode = 'Enable Camera Updates'
+            print(f"Enabled camera updates for {obj.name}")
+        else:
+            print("Error: Object must have KIRI_3DGS_Render_GN modifier")
 
-                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
-        raise ValueError("Invalid ObjIndex or class_name")
+    def DisableCameraUpdates(self, obj=None):
+        """
+        Disable camera updates for a 3DGS object.
+
+        Args:
+            obj: Blender object to disable camera updates for. If None, uses active object.
+        """
+        if obj is None:
+            obj = bpy.context.view_layer.objects.active
+
+        if obj and 'KIRI_3DGS_Render_GN' in obj.modifiers:
+            # Set the update mode to 'Disable Camera Updates'
+            obj.sna_kiri3dgs_active_object_update_mode = 'Disable Camera Updates'
+            print(f"Disabled camera updates for {obj.name}")
+        else:
+            print("Error: Object must have KIRI_3DGS_Render_GN modifier")
+
+    def UpdateActiveToView(self, obj=None):
+        """
+        Update the active 3DGS object to match the current viewport view.
+        This is equivalent to clicking 'Update Active To View' in the addon UI.
+
+        Args:
+            obj: Blender object to update. If None, uses active object.
+        """
+        if obj is None:
+            obj = bpy.context.view_layer.objects.active
+
+        if obj and 'KIRI_3DGS_Render_GN' in obj.modifiers:
+            # Make the object active
+            bpy.context.view_layer.objects.active = obj
+            # Call the addon's update function
+            bpy.ops.sna.dgs_render_align_active_to_view_30b13('EXEC_DEFAULT')
+            print(f"Updated {obj.name} to current view")
+        else:
+            print("Error: Object must have KIRI_3DGS_Render_GN modifier")
+
+    def UpdateAllCameraEnabledObjects(self):
+        """
+        Update all objects that have camera updates enabled to the current view.
+        This updates all 3DGS objects at once.
+        """
+        # Call the addon's function that updates all enabled objects
+        bpy.ops.sna.dgs_render_update_enabled_3dgs_objects_6d7f4(
+            'EXEC_DEFAULT')
+        print("Updated all camera-enabled 3DGS objects")
+
+    def ListAllObjects(self):
+        """
+        List all objects currently in the Blender scene.
+
+        Returns:
+            list: of dictionaries with object information (if detailed=True)
+        """
+        objects_info = []
+        for obj in bpy.context.scene.objects:
+            obj_info = {
+                'name': obj.name,
+                'type': obj.type,
+                'location': tuple(obj.location),
+                'is_3dgs': 'KIRI_3DGS_Render_GN' in [mod.name for mod in obj.modifiers] if obj.type == 'MESH' else False
+            }
+            objects_info.append(obj_info)
+
+        # Debug print:
+        if self.debug:
+            print(f"Found {len(objects_info)} objects in scene:")
+            for obj_info in objects_info:
+                status = "ACTIVE" if obj_info['name'] == bpy.context.view_layer.objects.active.name else ""
+                print(
+                    f"  - {obj_info['name']} [{obj_info['type']}]{' [3DGS]' if obj_info['is_3dgs'] else ''} {status}")
+        return objects_info
+
+    def GetObjectByName(self, name):
+        """
+        Get a Blender object by its name.
+
+        Args:
+            name (str): Name of the object to find
+
+        Returns:
+            bpy.types.Object or None: The object if found, None otherwise
+        """
+        obj = bpy.data.objects.get(name)
+        if obj:
+            print(f"Found object: {name}")
+            return obj
+        else:
+            print(f"Object '{name}' not found")
+            return None
+
 
 # ---------------------------------------------------------------------------- #
 #                                    Blender                                   #
 # ---------------------------------------------------------------------------- #
 
-
 # Example usage
 path = "test_dir"
 object_loader = ObjectLoader(path, True)
-object_loader.CreateObject(ObjIndex=0)
-object_loader.CreateObject(ObjIndex=1)
-object_loader.CreateObject(ObjIndex=2)
+object_loader.UpdateAllCameraEnabledObjects()
+# object_loader.CreateObject(ObjIndex=2, class_name="chair")
+# object_loader.EnableCameraUpdates()
+# object_loader.UpdateActiveToView()
+# object_loader.DisableCameraUpdates()
