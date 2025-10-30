@@ -2,7 +2,7 @@ import bpy
 
 
 class Object:
-    def __init__(self, obj: bpy.types.Object, class_id: int, class_name: str):
+    def __init__(self, obj: bpy.types.Object, class_id: int, class_name: str, spawn_position: tuple[float, float, float] = None):
         self.obj = obj
         self.name = obj.name
         self.location = obj.location
@@ -13,6 +13,8 @@ class Object:
         self.obj["class_name"] = class_name
 
         # For resetting between batches:
+        if spawn_position is not None:
+            self.obj.location = spawn_position
         self.default_location = obj.location.copy()
         self.default_rotation = obj.rotation_euler.copy()
         self.default_scale = obj.scale.copy()
@@ -56,16 +58,16 @@ class Object:
         return self.obj.get("class_name", "Undefined")
     
 
-# spawn a cube and make it the active object
-bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, location=(0.0, 0.0, 0.0))
-obj = bpy.context.active_object
+# # spawn a cube and make it the active object
+# bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, location=(0.0, 0.0, 0.0))
+# obj = bpy.context.active_object
 
-obj = Object(obj, 1, "ExampleClass")
-obj.setKeyframe((1, 2, 3), (0.5, 0.5, 0.5), (1, 1, 1), frame=10)
-obj.setKeyframe((4, 5, 6), (1.0, 1.0, 1.0), (2, 2, 2), frame=20)
+# obj = Object(obj, 1, "ExampleClass")
+# obj.setKeyframe((1, 2, 3), (0.5, 0.5, 0.5), (1, 1, 1), frame=10)
+# obj.setKeyframe((4, 5, 6), (1.0, 1.0, 1.0), (2, 2, 2), frame=20)
 
-obj.clearPosition()
-obj.setOnlyKeyframe(frame=30)
+# obj.clearPosition()
+# obj.setOnlyKeyframe(frame=30)
 
 
 

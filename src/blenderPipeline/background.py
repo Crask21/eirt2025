@@ -21,11 +21,11 @@ class Background:
     
 
 
-# spawn a plane and make it the active object
-bpy.ops.mesh.primitive_plane_add(size=10, enter_editmode=False, location=(0.0, 0.0, 0.0))
-bg_obj = bpy.context.active_object
-background = Background(bg_obj, limits=(-4.0, 4.0, -4.0, 4.0))
+# # spawn a plane and make it the active object
+# bpy.ops.mesh.primitive_plane_add(size=10, enter_editmode=False, location=(0.0, 0.0, 0.0))
+# bg_obj = bpy.context.active_object
+# background = Background(bg_obj, limits=(-4.0, 4.0, -4.0, 4.0))
 
-# Example of getting a random position within the background limits
-random_position = background.getRandomPosition()
-print(f"Random position on background: {random_position}")
+# # Example of getting a random position within the background limits
+# random_position = background.getRandomPosition()
+# print(f"Random position on background: {random_position}")

@@ -2,35 +2,48 @@ import bpy
 import os
 from pathlib import Path
 bpy.ops.preferences.addon_enable(module="kiri_3dgs")
+import json
 
 # ------------------------------- ObjectLoader ------------------------------- #
-
+print("objectLoader.py loaded")
 
 class ObjectLoader:
     def __init__(self, DatabasePath: str, debug: bool = False):
         self.allowed_extensions = [".obj", ".stl", ".ply"]
+
         self.DatabasePath = Path(DatabasePath)
         self.debug = debug
         if debug:
             print(f"[INFO] DatabasePath set to: {self.DatabasePath}")
+
+        with open(self.DatabasePath / "class_id.json", 'r') as f:
+            self.class_id_dict = json.load(f)
+        if debug:
+            print(f"[INFO] Loaded class_id.json: {self.class_id_dict}")
+
         self.Classes = self.read_classes()
         if debug:
             print(f"[INFO] Classes found: {self.Classes}")
+
         self.ObjectsByClass = self.organize_objects_by_class()
         self.TotalObjects = len(self.FindAllObjects())
         if debug:
             print(f"[INFO] TotalObjects found: {self.TotalObjects}")
+
         self.AllObjects = self.FindAllObjects()
 
 # ------------------------------- Create Object ------------------------------ #
-    def CreateObject(self, ObjIndex=None, class_name: str = None):
+    def CreateObject(self, ObjIndex=None, spawn_position: tuple[float, float, float] = None, class_name: str = None):
         """
         Create an object from the database.
         Args:
             ObjIndex (int, optional): Index of the object to load. Defaults to None.
             class_name (str, optional): Class name to load the object from. Defaults to None
         """
+        
         if class_name:
+            if class_name not in self.class_id_dict:
+                raise ValueError(f"Class name '{class_name}' not found in class_id.json")
             objects = self.ObjectsByClass.get(class_name, [])
             if ObjIndex is not None and 0 <= ObjIndex < len(objects):
                 obj_path = str(objects[ObjIndex])  # Convert Path to string
@@ -48,12 +61,16 @@ class ObjectLoader:
                         # Fall back to regular PLY import if not a 3DGS file
                         bpy.ops.wm.ply_import(filepath=obj_path)
 
-                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+                print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
+                print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
+
+                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name] if bpy.context.selected_objects else None
 
         elif class_name is None and ObjIndex is not None:
             if 0 <= ObjIndex < len(self.AllObjects):
                 # Convert Path to string
                 obj_path = str(self.AllObjects[ObjIndex])
+                class_name = self.AllObjects[ObjIndex].parent.name
                 # Try different import methods based on file extension
                 if obj_path.lower().endswith('.stl'):
                     bpy.ops.wm.stl_import(filepath=obj_path)
@@ -68,7 +85,9 @@ class ObjectLoader:
                         # Fall back to regular PLY import if not a 3DGS file
                         bpy.ops.wm.ply_import(filepath=obj_path)
 
-                return bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+                print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
+                print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
+                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name] if bpy.context.selected_objects else None
         raise ValueError("Invalid ObjIndex or class_name")
 
     def organize_objects_by_class(self) -> dict[str, list[Path]]:
@@ -235,9 +254,9 @@ class ObjectLoader:
 # ---------------------------------------------------------------------------- #
 
 # Example usage
-path = "test_dir"
-object_loader = ObjectLoader(path, True)
-object_loader.UpdateAllCameraEnabledObjects()
+# path = "test_dir"
+# object_loader = ObjectLoader(path, True)
+# object_loader.UpdateAllCameraEnabledObjects()
 # object_loader.CreateObject(ObjIndex=2, class_name="chair")
 # object_loader.EnableCameraUpdates()
 # object_loader.UpdateActiveToView()
