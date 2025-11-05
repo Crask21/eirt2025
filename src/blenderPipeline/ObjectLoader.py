@@ -9,7 +9,7 @@ print("objectLoader.py loaded")
 
 class ObjectLoader:
     def __init__(self, DatabasePath: str, debug: bool = False):
-        self.allowed_extensions = [".obj", ".stl", ".ply"]
+        self.allowed_extensions = [".obj", ".stl", ".ply", "gltf"]
 
         self.DatabasePath = Path(DatabasePath)
         self.debug = debug

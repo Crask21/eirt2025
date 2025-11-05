@@ -15,8 +15,8 @@ import random
 class Batch:
     def __init__(self):
 
-        self.objectLoader = ObjectLoader(DatabasePath='E:\\datasets\\test_dir', debug=True)
-        self.backgroundLoader = BackgroundLoader(DatabasePath='E:\\datasets\\backgrounds', debug=True)
+        self.objectLoader = ObjectLoader(DatabasePath='E:\\datasets\\eirt_objects', debug=True)
+        self.backgroundLoader = BackgroundLoader(DatabasePath='E:\\datasets\\eirt_objects', debug=True)
 
         default_spawn_position = (0.0, 0.0, -10.0)
         
