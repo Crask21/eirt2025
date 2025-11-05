@@ -1,15 +1,15 @@
 import bpy
 import os
 from pathlib import Path
-bpy.ops.preferences.addon_enable(module="kiri_3dgs")
+# bpy.ops.preferences.addon_enable(module="kiri_3dgs")
 import json
 
 # ------------------------------- ObjectLoader ------------------------------- #
-print("objectLoader.py loaded")
+# print("objectLoader.py loaded")
 
 class ObjectLoader:
     def __init__(self, DatabasePath: str, debug: bool = False):
-        self.allowed_extensions = [".obj", ".stl", ".ply", "gltf"]
+        self.allowed_extensions = [".obj", ".stl", ".ply", "gltf", ".glb"]
 
         self.DatabasePath = Path(DatabasePath)
         self.debug = debug
@@ -40,7 +40,6 @@ class ObjectLoader:
             ObjIndex (int, optional): Index of the object to load. Defaults to None.
             class_name (str, optional): Class name to load the object from. Defaults to None
         """
-        
         if class_name:
             if class_name not in self.class_id_dict:
                 raise ValueError(f"Class name '{class_name}' not found in class_id.json")
@@ -60,9 +59,11 @@ class ObjectLoader:
                     except:
                         # Fall back to regular PLY import if not a 3DGS file
                         bpy.ops.wm.ply_import(filepath=obj_path)
-
-                print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
-                print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
+                elif obj_path.lower().endswith('.gltf') or obj_path.lower().endswith('.glb'):
+                    bpy.ops.import_scene.gltf(filepath=obj_path)
+                if self.debug:
+                    print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
+                    print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
 
                 return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name] if bpy.context.selected_objects else None
 
@@ -84,9 +85,11 @@ class ObjectLoader:
                     except:
                         # Fall back to regular PLY import if not a 3DGS file
                         bpy.ops.wm.ply_import(filepath=obj_path)
-
-                print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
-                print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
+                elif obj_path.lower().endswith('.gltf') or obj_path.lower().endswith('.glb'):
+                    bpy.ops.import_scene.gltf(filepath=obj_path)
+                if self.debug:
+                    print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
+                    print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
                 return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name] if bpy.context.selected_objects else None
         raise ValueError("Invalid ObjIndex or class_name")
 
@@ -119,8 +122,9 @@ class ObjectLoader:
         for entry in os.listdir(self.DatabasePath):
             entry_path = self.DatabasePath / entry
             if entry_path.is_dir():
-                class_name = entry_path.name[:]
-                classes.append(class_name)
+                class_name = entry_path.name
+                if class_name.lower() != "_unsorted":
+                    classes.append(class_name)
         return classes
 
     def FindAllObjects(self) -> list[Path]:
@@ -254,8 +258,15 @@ class ObjectLoader:
 # ---------------------------------------------------------------------------- #
 
 # Example usage
-# path = "test_dir"
+# path = 'F:\\datasets\\eirt_objects'
 # object_loader = ObjectLoader(path, True)
+# objects = object_loader.FindAllObjects()
+# print(f"Total objects found: {len(objects)}")
+# print("objects by class:")
+# for obj in objects:
+#     print(f" - {obj}")
+# object_loader.CreateObject(ObjIndex=0, class_name="person")
+
 # object_loader.UpdateAllCameraEnabledObjects()
 # object_loader.CreateObject(ObjIndex=2, class_name="chair")
 # object_loader.EnableCameraUpdates()

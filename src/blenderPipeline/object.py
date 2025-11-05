@@ -15,6 +15,7 @@ class Object:
         # For resetting between batches:
         if spawn_position is not None:
             self.obj.location = spawn_position
+        self.obj.rotation_mode = 'XYZ'
         self.default_location = obj.location.copy()
         self.default_rotation = obj.rotation_euler.copy()
         self.default_scale = obj.scale.copy()
