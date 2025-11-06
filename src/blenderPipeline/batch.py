@@ -17,8 +17,6 @@ sys.path.append(dirname(__file__))
 
 objectsPath = 'F:\\datasets\\eirt_objects'
 savePath = 'F:\\datasets\\eirt_output'
-
-
 class Batch:
     def __init__(self, objectsPerBatch: int = 1, objectsPerSample: int = 1, samples: int = 100):
 
@@ -42,6 +40,7 @@ class Batch:
         default_spawn_position = (0.0, 0.0, -10.0)
         total_dataset_objects = self.objectLoader.TotalObjects
 
+        print(f"[INFO] Total objects in dataset: {total_dataset_objects}")
         for _ in range(self.objectsPerBatch):
             rand_index = random.randint(0, total_dataset_objects - 1)
             obj, class_name, class_id = self.objectLoader.CreateObject(
@@ -57,7 +56,7 @@ class Batch:
         bpy.context.scene.cycles.device = 'GPU'
         bpy.context.scene.use_nodes = True
         bpy.context.scene.view_layers["ViewLayer"].use_pass_object_index = True
-        bpy.context.scene.cycles.samples = 512
+        bpy.context.scene.cycles.samples = 128
         bpy.context.scene.frame_start = 0
         bpy.context.scene.frame_end = samples - 1
 
@@ -72,13 +71,25 @@ class Batch:
         composite_out = tree.nodes.new('CompositorNodeOutputFile')
         composite_out.base_path = os.path.join(savePath, "rgb")
 
+        # Enable depth pass
+        bpy.context.scene.view_layers["ViewLayer"].use_pass_z = True
+        depth_out = tree.nodes.new('CompositorNodeOutputFile')
+        depth_out.base_path = os.path.join(savePath, "depth")
+        tree.links.new(rl.outputs['Depth'], depth_out.inputs['Image'])
+
+        mask2_out = tree.nodes.new('CompositorNodeComposite')
+
+        bpy.context.scene.render.filepath = os.path.join(savePath, "mask2\\Image")
+        bpy.context.scene.render.image_settings.file_format = 'JPEG'
+
         mask_out = tree.nodes.new('CompositorNodeOutputFile')
         mask_out.base_path = os.path.join(savePath, "mask")
-
+        tree.links.new(rl.outputs['IndexOB'], mask_out.inputs['Image'])
         # Connect RGB
         tree.links.new(rl.outputs['Image'], composite_out.inputs['Image'])
         # Connect object index pass
         tree.links.new(rl.outputs['IndexOB'], mask_out.inputs['Image'])
+
 
         # ---------------------------------- example --------------------------------- #
         # obj, class_name, class_id = self.objectLoader.CreateObject(0, class_name="person")
