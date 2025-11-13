@@ -7,6 +7,7 @@ class Camera:
         self.camera.data.lens_unit = 'FOV'
         self.FOV = 39.6
         self.camera.data.angle = self.FOV * (3.14159265 / 180.0)  # Convert degrees to radians
+        
     def setPosition(self, position: tuple[float, float, float]):
         if self.camera:
             self.camera.location = position
