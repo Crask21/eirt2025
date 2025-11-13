@@ -7,10 +7,10 @@ import random
 class Background:
     def __init__(self, background: bpy.types.Object, limits: tuple[float, float, float, float]):
         self.obj = background
-        self.name = background.name
-        self.location = background.location
-        self.rotation = background.rotation_euler
-        self.scale = background.scale
+        # self.name = background.name
+        # self.location = background.location
+        # self.rotation = background.rotation_euler
+        # self.scale = background.scale
         self.limits = limits # (xmin, xmax, ymin, ymax)
     
     def getRandomPosition(self) -> tuple[float, float, float]:

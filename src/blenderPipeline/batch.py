@@ -12,6 +12,7 @@ from camera import Camera
 from light import Light
 import random
 import bpy
+import math
 # import objectLoader
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
@@ -46,7 +47,7 @@ class Batch:
             self.objects.append(Object(obj, class_id, class_name, spawn_position=default_spawn_position))
 
         # ----------------------------- spawn background ----------------------------- #
-        self.background = None
+        self.background = Background(0, [-10.0, 10.0, -10.0, 10.0])
 
 
         # -------------------------- set scene and save path ------------------------- #
@@ -82,12 +83,24 @@ class Batch:
 
         mask_out = tree.nodes.new('CompositorNodeOutputFile')
         mask_out.base_path = os.path.join(savePath, "mask")
-        tree.links.new(rl.outputs['IndexOB'], mask_out.inputs['Image'])
         # Connect RGB
         tree.links.new(rl.outputs['Image'], composite_out.inputs['Image'])
+
+
+        multiplier = tree.nodes.new('CompositorNodeMath')
+        multiplier.operation = 'MULTIPLY'
+        multiplier.inputs[1].default_value = 0.1  # Scale factor
+        tree.links.new(rl.outputs['IndexOB'], multiplier.inputs[0])
+        tree.links.new(multiplier.outputs['Value'], mask_out.inputs['Image'])
+
+
         # Connect object index pass
         tree.links.new(rl.outputs['IndexOB'], mask2_out.inputs['Image'])
 
+
+
+        # ---------------------------- GenerateSample test --------------------------- #
+        self.GenerateSample()
 
         # ---------------------------------- example --------------------------------- #
         # obj, class_name, class_id = self.objectLoader.CreateObject(0, class_name="person")
@@ -99,6 +112,35 @@ class Batch:
 
     def addObject(self, obj):
         self.objects.append(obj)
+
+    def GenerateSample(self):
+        
+        # Random camera position and rotation within background limits
+        cam_x = random.uniform(self.background.limits[0], self.background.limits[1])
+        cam_y = random.uniform(self.background.limits[2], self.background.limits[3])
+        cam_z = 0.5  # Fixed height for simplicity
+        cam_rot_x = 80/180 * 3.14159265  # Tilt down 80 degrees
+        cam_rot_z = random.uniform(0, 2 * 3.14159265)  # Rotate around Z axis
+        self.camera.setKeyframe(position=(cam_x, cam_y, cam_z), rotation=(cam_rot_x, 0.0, cam_rot_z), frame=bpy.context.scene.frame_current)
+        
+        randomObjs = random.sample(self.objects, self.objectsPerSample)
+
+        # generate random transforms (r, alpha, theta) where (r,alpha) are polar coordinates in the XY plane originating from camera. Theta is rotation around Z axis.
+        # Global (x,y) coordinates are constrained to be within map
+        for obj in randomObjs:
+            #TODO: ensure objects are within background limits and no collisions
+            r = random.uniform(4.0, 15.0)
+            alpha = random.uniform(-self.camera.FOV/2, self.camera.FOV/2) * (3.14159265 / 180.0)  # Convert degrees to radians
+            theta = random.uniform(0, 360)
+
+            
+            alpha_camera = alpha + self.camera.camera.rotation_euler[2]/180 * 3.14159265  # Adjust alpha based on camera rotation
+            print(f"[DEBUG] alpha_camera: {alpha_camera}, camera rotation: {self.camera.camera.rotation_euler[2]}")
+            x = r * round(math.cos(alpha_camera), 2) + self.camera.camera.location[0]
+            y = r * round(math.sin(alpha_camera), 2) + self.camera.camera.location[1]
+            z = 0.0  # Keep Z constant for simplicity
+
+            obj.setKeyframe(position=(x, y, z), rotation=(0.0, 0.0, theta), scale=(1.0, 1.0, 1.0), frame=bpy.context.scene.frame_current)
 
 
 

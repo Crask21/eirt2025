@@ -3,6 +3,10 @@ class Camera:
     def __init__(self):
         bpy.ops.object.camera_add()
         self.camera = bpy.context.object
+        #TODO: set camera FOV unit to angle and set FOV to 39.6 degrees
+        self.camera.data.lens_unit = 'FOV'
+        self.FOV = 39.6
+        self.camera.data.angle = self.FOV * (3.14159265 / 180.0)  # Convert degrees to radians
     def setPosition(self, position: tuple[float, float, float]):
         if self.camera:
             self.camera.location = position
