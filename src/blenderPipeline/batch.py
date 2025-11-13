@@ -17,6 +17,7 @@ import math
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
 objectsPath = 'E:\\datasets\\eirt_objects'
+backgroundPath = "E:\\datasets\\eirt_background\\dreamlab_lowres.ply"
 savePath = 'E:\\datasets\\eirt_output'
 class Batch:
     def __init__(self, objectsPerBatch: int = 1, objectsPerSample: int = 1, samples: int = 100):
@@ -47,7 +48,7 @@ class Batch:
             self.objects.append(Object(obj, class_id, class_name, spawn_position=default_spawn_position))
 
         # ----------------------------- spawn background ----------------------------- #
-        self.background = Background(0, [-10.0, 10.0, -10.0, 10.0])
+        self.background = Background(backgroundPath, limits=(-3,3,-5.2,5.2))
 
 
         # -------------------------- set scene and save path ------------------------- #
@@ -119,7 +120,7 @@ class Batch:
         cam_x = random.uniform(self.background.limits[0], self.background.limits[1])
         cam_y = random.uniform(self.background.limits[2], self.background.limits[3])
         cam_z = 0.5  # Fixed height for simplicity
-        cam_rot_x = 80/180 * 3.14159265  # Tilt down 80 degrees
+        cam_rot_x = 85/180 * 3.14159265  # Tilt down 80 degrees
         cam_rot_z = random.uniform(0, 2 * 3.14159265)  # Rotate around Z axis
         self.camera.setKeyframe(position=(cam_x, cam_y, cam_z), rotation=(cam_rot_x, 0.0, cam_rot_z), frame=bpy.context.scene.frame_current)
         
@@ -129,20 +130,46 @@ class Batch:
         # Global (x,y) coordinates are constrained to be within map
         for obj in randomObjs:
             #TODO: ensure objects are within background limits and no collisions
-            r = random.uniform(4.0, 15.0)
-            alpha = random.uniform(-self.camera.FOV/2, self.camera.FOV/2) * (3.14159265 / 180.0)  # Convert degrees to radians
-            theta = random.uniform(0, 360)
+            i = 0
+            while True:
+                r = random.uniform(1.5, 15.0)
+                alpha = random.uniform(-self.camera.FOV/2, self.camera.FOV/2) * (3.14159265 / 180.0)  # Convert degrees to radians
+                theta = random.uniform(0, 2*3.14159265)
 
-            
-            alpha_camera = alpha + self.camera.camera.rotation_euler[2]/180 * 3.14159265  # Adjust alpha based on camera rotation
-            print(f"[DEBUG] alpha_camera: {alpha_camera}, camera rotation: {self.camera.camera.rotation_euler[2]}")
-            x = r * round(math.cos(alpha_camera), 2) + self.camera.camera.location[0]
-            y = r * round(math.sin(alpha_camera), 2) + self.camera.camera.location[1]
-            z = 0.0  # Keep Z constant for simplicity
+                
+                alpha_camera = alpha + self.camera.camera.rotation_euler[2]  # Adjust alpha based on camera rotation
+                x = r * round(-math.sin(alpha_camera), 2) + self.camera.camera.location[0]
+                y = r * round(math.cos(alpha_camera), 2) + self.camera.camera.location[1]
+                z = 0.0  # Keep Z constant for simplicity
+                # Check for collisions with other objects
+                obj.setPosition((x, y, z))
+                if (self.background.limits[0] <= x <= self.background.limits[1]) and (self.background.limits[2] <= y <= self.background.limits[3]) and not self.checkCollisions(obj):
+                    obj.setKeyframe(position=(x, y, z), rotation=(0.0, 0.0, theta), scale=(1.0, 1.0, 1.0), frame=bpy.context.scene.frame_current)
+                    break
+                i += 1
+                if i > 20:
+                    print(f"[WARNING] Could not place object {obj.obj_class} without collisions after 20 attempts.")
+                    obj.clearPosition()
+                    break
 
-            obj.setKeyframe(position=(x, y, z), rotation=(0.0, 0.0, theta), scale=(1.0, 1.0, 1.0), frame=bpy.context.scene.frame_current)
+
+            # print(f"[DEBUG] alpha_camera: {alpha_camera}, camera rotation: {self.camera.camera.rotation_euler[2]}")
+            # print(f"[DEBUG] camera pose: {self.camera.camera.location}, object polar coords (r, alpha): ({r}, {alpha}), object cartesian coords (x, y): ({x}, {y})")
+
+    
+    def checkCollisions(self, obj1: Object) -> bool:
+        for obj2 in self.objects:
+            if obj1 != obj2:
+                dist = ((obj1.obj.location[0] - obj2.obj.location[0]) ** 2 + 
+                    (obj1.obj.location[1] - obj2.obj.location[1]) ** 2 + 
+                    (obj1.obj.location[2] - obj2.obj.location[2]) ** 2) ** 0.5
+                # print(f"[DEBUG] Checking collision between {obj1.obj_class} and {obj2.obj_class}: Distance = {dist}, Sum of Radii = {obj1.bounding_radius + obj2.bounding_radius}")
+                if dist < (obj1.bounding_radius + obj2.bounding_radius):
+                    return True
+        
+        return False
 
 
 
 
-batch = Batch(objectsPerBatch=5)
+batch = Batch(objectsPerBatch=5, objectsPerSample=5, samples=10)

@@ -11,6 +11,7 @@ class Object:
         self.class_id = class_id
         self.obj.pass_index = class_id
         self.obj["class_name"] = class_name
+        self.bounding_radius = 0.5  # Placeholder value
 
         # For resetting between batches:
         if spawn_position is not None:
