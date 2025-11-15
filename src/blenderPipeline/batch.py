@@ -102,7 +102,7 @@ class Batch:
         tree.links.new(rl.outputs['IndexOB'], mask2_out.inputs['Image'])
 
         # ---------------------------- GenerateSample test --------------------------- #
-        #self.GenerateSample() # Camera doesnt have FOV
+        self.GenerateSample() # Camera doesnt have FOV
 
         # ---------------------------------- example --------------------------------- #
         # obj, class_name, class_id = self.objectLoader.CreateObject(0, class_name="person")
