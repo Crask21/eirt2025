@@ -5,13 +5,19 @@ import random
 
 
 class Background:
-    def __init__(self, background: bpy.types.Object, limits: tuple[float, float, float, float]):
-        self.obj = background
-        self.name = background.name
-        self.location = background.location
-        self.rotation = background.rotation_euler
-        self.scale = background.scale
-        self.limits = limits # (xmin, xmax, ymin, ymax)
+    def __init__(self, backgroundPath: str, limits: tuple[float, float, float, float]):
+        if backgroundPath is not None:
+            bpy.ops.sna.dgs_render_import_ply_bf139(filepath=backgroundPath)
+            self.background = bpy.context.active_object    
+            self.EnableCameraUpdates(self.background)
+
+            self.UpdateActiveToView(self.background)
+        # self.name = background.name
+        # self.location = background.location
+        # self.rotation = background.rotation_euler
+        # self.scale = background.scale
+        self.limits = limits # (xmin, xmax, ymin, ymax) #(-3,3,-5.2,5.2)
+
     
     def getRandomPosition(self) -> tuple[float, float, float]:
         xmin, xmax, ymin, ymax = self.limits
