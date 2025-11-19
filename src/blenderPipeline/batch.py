@@ -11,6 +11,7 @@ from light import Light
 import random
 import bpy
 import math
+import time
 
 
 
@@ -20,14 +21,14 @@ import math
 # import objectLoader
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
-objectsPath = 'objects'
-backgroundPath = None
-savePath = 'output'
+objectsPath = "F:\\datasets\\eirt_objects"
+backgroundPath = "F:\\datasets\\eirt_background\\background01.usdc"
+savePath = "F:\\datasets\\eirt_output\\batch01"
+enableCuda = True
 
 
 class Batch:
-    def __init__(self, objectsPerBatch: int = 1, objectsPerSample: int = 1, samples: int = 100):
-
+    def __init__(self, objectsPerBatch: int = 1, objectsPerSample: int = 1, samples: int = 100, startFrame: int = 0): 
         # ----------------------------- sample parameters ---------------------------- #
         self.objectsPerBatch = objectsPerBatch
         if objectsPerSample > objectsPerBatch:
@@ -36,13 +37,15 @@ class Batch:
             self.objectsPerSample = objectsPerSample
 
         # -------------------------- loaders and scene setup ------------------------- #
-        self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False)
-        self.backgroundLoader = BackgroundLoader(DatabasePath=objectsPath, debug=False)
+        self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
+        self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False, includeGaussianSplatts=False)
         self.camera = Camera()
         self.light = Light(light_type='AREA', energy=15000, location=(0, 0, 20), rotation=(0, 0, 0), radius=50.0)
 
+        # ----------------------------- spawn background ----------------------------- #
 
         # ------------------------------- spawn objects ------------------------------ #
+
         self.objects = []
         default_spawn_position = (0.0, 0.0, -10.0)
         total_dataset_objects = self.objectLoader.TotalObjects
@@ -53,17 +56,16 @@ class Batch:
             obj, class_name, class_id = self.objectLoader.CreateObject(rand_index)
             self.objects.append(Object(obj, class_id, class_name, spawn_position=default_spawn_position))
 
-        # ----------------------------- spawn background ----------------------------- #
-        self.background = Background(backgroundPath, limits=(-3, 3, -5.2, 5.2))
 
         # -------------------------- set scene and save path ------------------------- #
         bpy.context.scene.render.engine = 'CYCLES'
-        bpy.context.scene.cycles.device = 'GPU'
+        bpy.context.scene.cycles.device = 'GPU' if enableCuda else 'CPU'
+
         bpy.context.scene.use_nodes = True
         bpy.context.scene.view_layers["ViewLayer"].use_pass_object_index = True
         bpy.context.scene.cycles.samples = 128
-        bpy.context.scene.frame_start = 0
-        bpy.context.scene.frame_end = samples - 1
+        bpy.context.scene.frame_start = startFrame
+        bpy.context.scene.frame_end = bpy.context.scene.frame_start + samples - 1
 
         tree = bpy.context.scene.node_tree
         for n in tree.nodes:
@@ -84,7 +86,7 @@ class Batch:
 
         mask2_out = tree.nodes.new('CompositorNodeComposite')
 
-        bpy.context.scene.render.filepath = os.path.join(savePath, "mask2\\Image")
+        bpy.context.scene.render.filepath = os.path.join(savePath, "mask2")
         bpy.context.scene.render.image_settings.file_format = 'JPEG'
 
         mask_out = tree.nodes.new('CompositorNodeOutputFile')
@@ -98,15 +100,24 @@ class Batch:
         tree.links.new(rl.outputs['IndexOB'], multiplier.inputs[0])
         tree.links.new(multiplier.outputs['Value'], mask_out.inputs['Image'])
 
+        multiplier2 = tree.nodes.new('CompositorNodeMath')
+        multiplier2.operation = 'MULTIPLY'
+        multiplier2.inputs[1].default_value = 0.05  # Scale factor
+        tree.links.new(rl.outputs['Depth'], multiplier2.inputs[0])
+        tree.links.new(multiplier2.outputs['Value'], depth_out.inputs['Image'])
+
         # Connect object index pass
         tree.links.new(rl.outputs['IndexOB'], mask2_out.inputs['Image'])
 
         # ---------------------------- GenerateSample test --------------------------- #
-        self.GenerateSample() # Camera doesnt have FOV
+        for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
+            bpy.context.scene.frame_set(frame)
+            self.GenerateSample() 
 
         # ---------------------------------- example --------------------------------- #
         # obj, class_name, class_id = self.objectLoader.CreateObject(0, class_name="person")
-        # self.objects.append(Object(obj, class_id, class_name, spawn_position=default_spawn_position))
+        # self.objects.append(Object(obj, class_id, class_name, spawn
+        # _position=default_spawn_position))
         # self.objects[0].setKeyframe(position=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0), frame=10)
         # self.objects[0].setKeyframe(position=(2.0, 2.0, 0.0), rotation=(0.0, 0.0, 1.57), scale=(1.0, 1.0, 2.0), frame=20)
         # self.objects[0].clearPosition()
@@ -152,6 +163,12 @@ class Batch:
                     print(f"[WARNING] Could not place object {obj.obj_class} without collisions after 20 attempts.")
                     obj.clearPosition()
                     break
+        
+        # Reset object positions for next frame
+        for obj in randomObjs:
+            obj.clearPosition()
+            obj.setOnlyKeyframe(frame=bpy.context.scene.frame_current+1)
+
 
             # print(f"[DEBUG] alpha_camera: {alpha_camera}, camera rotation: {self.camera.camera.rotation_euler[2]}")
             # print(f"[DEBUG] camera pose: {self.camera.camera.location}, object polar coords (r, alpha): ({r}, {alpha}), object cartesian coords (x, y): ({x}, {y})")
@@ -169,4 +186,12 @@ class Batch:
         
         return False
 
-batch = Batch(objectsPerBatch=5, objectsPerSample=5, samples=10)
+batch = Batch(objectsPerBatch=10, objectsPerSample=5, samples=300, startFrame=200)
+
+
+# @bpy.app.handlers.persistent
+# def on_scene_loaded(dummy):
+#     print("[INFO] Scene loaded, initializing batch generation...")
+
+# bpy.app.handlers.load_post.append(on_scene_loaded)
+# bpy.ops.wm.open_mainfile(filepath=backgroundPath)

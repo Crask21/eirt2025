@@ -8,9 +8,10 @@ import json
 # print("objectLoader.py loaded")
 
 class ObjectLoader:
-    def __init__(self, DatabasePath: str, debug: bool = False):
-        self.allowed_extensions = [".obj", ".stl", ".ply", "gltf", ".glb"]
-
+    def __init__(self, DatabasePath: str, debug: bool = False, includeGaussianSplatts: bool = False):
+        self.allowed_extensions = [".obj", ".stl", "gltf", ".glb"]
+        if includeGaussianSplatts:
+            self.allowed_extensions.append(".ply")
         self.DatabasePath = Path(DatabasePath)
         self.debug = debug
         if debug:
