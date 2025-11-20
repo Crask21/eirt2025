@@ -4,6 +4,22 @@ import open3d as o3d
 from pathlib import Path
 
 
+def fov_to_focal_length(fov_degrees, image_size):
+    """
+    Convert field of view to focal length.
+
+    Args:
+        fov_degrees: Field of view in degrees
+        image_size: Image width (for horizontal FOV) or height (for vertical FOV)
+
+    Returns:
+        Focal length in pixels
+    """
+    fov_radians = np.radians(fov_degrees)
+    focal_length = (image_size / 2.0) / np.tan(fov_radians / 2.0)
+    return focal_length
+
+
 def load_depth_map(depth_path):
     """
     Load a grayscale depth map image.
@@ -21,8 +37,9 @@ def load_depth_map(depth_path):
 
 
 def depth_map_to_point_cloud(depth_map, rgb_image=None, invert_depth=True,
-                             max_depth=10.0, fx=525.0, fy=525.0,
-                             cx=None, cy=None):
+                             max_depth=200.0, fx=None, fy=None,
+                             cx=None, cy=None, z_scale=20.0,
+                             fov_horizontal=None, fov_vertical=None):
     """
     Convert a depth map to a 3D point cloud.
 
@@ -31,8 +48,11 @@ def depth_map_to_point_cloud(depth_map, rgb_image=None, invert_depth=True,
         rgb_image: Optional RGB image for coloring the point cloud
         invert_depth: If True, invert the depth values (darker pixels = closer)
         max_depth: Maximum depth value in meters/units
-        fx, fy: Focal lengths (intrinsic camera parameters)
+        fx, fy: Focal lengths (intrinsic camera parameters). If None, will use FOV or default to 525.0
         cx, cy: Principal point (center of image). If None, uses image center
+        z_scale: Additional scaling factor for Z-axis (depth) to exaggerate depth perception
+        fov_horizontal: Horizontal field of view in degrees (alternative to fx)
+        fov_vertical: Vertical field of view in degrees (alternative to fy)
 
     Returns:
         open3d.geometry.PointCloud object
@@ -44,6 +64,17 @@ def depth_map_to_point_cloud(depth_map, rgb_image=None, invert_depth=True,
         cx = width / 2.0
     if cy is None:
         cy = height / 2.0
+
+    # Calculate focal lengths from FOV if provided, otherwise use defaults
+    if fov_horizontal is not None and fx is None:
+        fx = fov_to_focal_length(fov_horizontal, width)
+    elif fx is None:
+        fx = 525.0
+
+    if fov_vertical is not None and fy is None:
+        fy = fov_to_focal_length(fov_vertical, height)
+    elif fy is None:
+        fy = 525.0
 
     # Normalize depth map to [0, 1] range
     depth_normalized = depth_map.astype(np.float32) / 255.0
@@ -68,6 +99,9 @@ def depth_map_to_point_cloud(depth_map, rgb_image=None, invert_depth=True,
 
     # Stack coordinates and reshape to (N, 3)
     points = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+
+    # Apply additional Z-axis scaling to exaggerate depth
+    points[:, 2] *= z_scale
 
     # Filter out points with zero or very small depth
     valid_mask = points[:, 2] > 0.01
@@ -192,6 +226,14 @@ if __name__ == "__main__":
     # Example usage
     depth_dir = Path("data/batch01/depth")
     rgb_dir = Path("data/batch01/rgb")
+    mask_dir = Path("data/batch01/mask_raw")
 
     # Visualize all depth maps in the directory
-    batch_visualize(depth_dir, rgb_dir, max_depth=10.0, invert_depth=True)
+    # Option 1: Using focal length (current default)
+    batch_visualize(depth_dir, rgb_dir, max_depth=10.0,
+                    z_scale=20.0, invert_depth=True, fov_horizontal=39.6, fov_vertical=39.6)
+
+    # Option 2: Using FOV (uncomment to use instead)
+    # batch_visualize(depth_dir, rgb_dir, max_depth=10.0,
+    #                 z_scale=20.0, invert_depth=True,
+    #                 fov_horizontal=60.0, fov_vertical=45.0)
