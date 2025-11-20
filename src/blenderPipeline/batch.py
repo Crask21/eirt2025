@@ -21,9 +21,9 @@ import time
 # import objectLoader
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
-objectsPath = "F:\\datasets\\eirt_objects"
-backgroundPath = "F:\\datasets\\eirt_background\\background01.usdc"
-savePath = "F:\\datasets\\eirt_output\\batch01"
+objectsPath = "E:\\datasets\\eirt_objects"
+backgroundPath = "E:\\datasets\\eirt_background\\background01.usdc"
+savePath = "E:\\datasets\\eirt_output\\batch02"
 enableCuda = True
 
 
@@ -37,6 +37,7 @@ class Batch:
             self.objectsPerSample = objectsPerSample
 
         # -------------------------- loaders and scene setup ------------------------- #
+        # self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
         self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
         self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False, includeGaussianSplatts=False)
         self.camera = Camera()
@@ -60,7 +61,8 @@ class Batch:
         # -------------------------- set scene and save path ------------------------- #
         bpy.context.scene.render.engine = 'CYCLES'
         bpy.context.scene.cycles.device = 'GPU' if enableCuda else 'CPU'
-
+        bpy.context.scene.render.resolution_x = 1080
+        bpy.context.scene.render.resolution_y = 720
         bpy.context.scene.use_nodes = True
         bpy.context.scene.view_layers["ViewLayer"].use_pass_object_index = True
         bpy.context.scene.cycles.samples = 128
@@ -74,25 +76,30 @@ class Batch:
         # Render Layers node
         rl = tree.nodes.new('CompositorNodeRLayers')
 
-        # File Outputs
+        # # File Outputs
         composite_out = tree.nodes.new('CompositorNodeOutputFile')
         composite_out.base_path = os.path.join(savePath, "rgb")
+        tree.links.new(rl.outputs['Image'], composite_out.inputs['Image'])
 
         # Enable depth pass
         bpy.context.scene.view_layers["ViewLayer"].use_pass_z = True
         depth_out = tree.nodes.new('CompositorNodeOutputFile')
+        # depth_out.format.color_depth = '16'
+
         depth_out.base_path = os.path.join(savePath, "depth")
+        depth_out.format.file_format = "PNG"
+        depth_out.format.color_depth = '16'
         tree.links.new(rl.outputs['Depth'], depth_out.inputs['Image'])
 
-        mask2_out = tree.nodes.new('CompositorNodeComposite')
+        # mask2_out = tree.nodes.new('CompositorNodeComposite')
+        # tree.links.new(rl.outputs['IndexOB'], mask2_out.inputs['Image'])
 
-        bpy.context.scene.render.filepath = os.path.join(savePath, "mask2")
-        bpy.context.scene.render.image_settings.file_format = 'JPEG'
+        # bpy.context.scene.render.filepath = os.path.join(savePath, "mask2")
+        # bpy.context.scene.render.image_settings.file_format = 'JPEG'
 
         mask_out = tree.nodes.new('CompositorNodeOutputFile')
         mask_out.base_path = os.path.join(savePath, "mask")
         # Connect RGB
-        tree.links.new(rl.outputs['Image'], composite_out.inputs['Image'])
 
         multiplier = tree.nodes.new('CompositorNodeMath')
         multiplier.operation = 'MULTIPLY'
@@ -107,7 +114,6 @@ class Batch:
         tree.links.new(multiplier2.outputs['Value'], depth_out.inputs['Image'])
 
         # Connect object index pass
-        tree.links.new(rl.outputs['IndexOB'], mask2_out.inputs['Image'])
 
         # ---------------------------- GenerateSample test --------------------------- #
         for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
@@ -186,7 +192,7 @@ class Batch:
         
         return False
 
-batch = Batch(objectsPerBatch=10, objectsPerSample=5, samples=300, startFrame=200)
+batch = Batch(objectsPerBatch=10, objectsPerSample=5, samples=10, startFrame=0)
 
 
 # @bpy.app.handlers.persistent
