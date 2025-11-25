@@ -12,7 +12,7 @@ import random
 import bpy
 import math
 import time
-
+import csv
 
 
 # This is only relevant on first run, on later reloads those modules
@@ -21,9 +21,9 @@ import time
 # import objectLoader
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
-objectsPath = "E:\\datasets\\eirt_objects"
-backgroundPath = "E:\\datasets\\eirt_background\\background01.usdc"
-savePath = "E:\\datasets\\eirt_output\\batch02"
+objectsPath = "F:\\datasets\\eirt_objects"
+backgroundPath = "F:\\datasets\\eirt_background\\background01.usdc"
+savePath = "F:\\datasets\\eirt_output\\stationary_batch01"
 enableCuda = True
 
 
@@ -38,7 +38,7 @@ class Batch:
 
         # -------------------------- loaders and scene setup ------------------------- #
         # self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
-        self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
+        self.background = Background(backgroundPath, limits=(-5.8, 5.8, -2.4, 2.4))
         self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False, includeGaussianSplatts=False)
         self.camera = Camera()
         self.light = Light(light_type='AREA', energy=15000, location=(0, 0, 20), rotation=(0, 0, 0), radius=50.0)
@@ -115,10 +115,7 @@ class Batch:
 
         # Connect object index pass
 
-        # ---------------------------- GenerateSample test --------------------------- #
-        for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
-            bpy.context.scene.frame_set(frame)
-            self.GenerateSample() 
+        
 
         # ---------------------------------- example --------------------------------- #
         # obj, class_name, class_id = self.objectLoader.CreateObject(0, class_name="person")
@@ -131,6 +128,11 @@ class Batch:
 
     def addObject(self, obj):
         self.objects.append(obj)
+
+    def GenerateBatch(self):
+        for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
+            bpy.context.scene.frame_set(frame)
+            self.GenerateSample()
 
     def GenerateSample(self):
         
@@ -179,6 +181,65 @@ class Batch:
             # print(f"[DEBUG] alpha_camera: {alpha_camera}, camera rotation: {self.camera.camera.rotation_euler[2]}")
             # print(f"[DEBUG] camera pose: {self.camera.camera.location}, object polar coords (r, alpha): ({r}, {alpha}), object cartesian coords (x, y): ({x}, {y})")
 
+    def GenerateStationarySceneSamples(self):
+        
+        bpy.context.scene.frame_set(bpy.context.scene.frame_start)
+
+        # generate random transforms (r, alpha, theta) where (r,alpha) are polar coordinates in the XY plane originating from camera. Theta is rotation around Z axis.
+        # Global (x,y) coordinates are constrained to be within map
+        for obj in self.objects:
+            # TODO: ensure objects are within background limits and no collisions
+            i = 0
+            while True:
+                x = random.uniform(self.background.limits[0], self.background.limits[1])
+                y = random.uniform(self.background.limits[2], self.background.limits[3])
+                z = 0.0  # Keep Z constant for simplicity
+                theta = random.uniform(0, 2*3.14159265)
+                # Check for collisions with other objects
+                obj.setPosition((x, y, z))
+                if not self.checkCollisions(obj):
+                    obj.setKeyframe(position=(x, y, z), rotation=(0.0, 0.0, theta), scale=(1.0, 1.0, 1.0), frame=bpy.context.scene.frame_current)
+                    break
+                i += 1
+                if i > 20:
+                    print(f"[WARNING] Could not place object {obj.obj_class} without collisions after 20 attempts.")
+                    obj.clearPosition()
+                    break
+        
+        if not os.path.exists(savePath):
+            os.makedirs(savePath)
+
+
+        with open(os.path.join(savePath, "camera_positions.csv"), "w", newline="") as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(["frame", "cam_x", "cam_y", "cam_z", "cam_rot_x", "cam_rot_y", "cam_rot_z"])
+            # set random camera and object positions for each frame while remaining colision free
+            for frame in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1):
+                bpy.context.scene.frame_set(frame)
+
+                while True:
+                    # Random camera position and rotation within background limits
+                    cam_x = random.uniform(self.background.limits[0], self.background.limits[1])
+                    cam_y = random.uniform(self.background.limits[2], self.background.limits[3])
+                    cam_z = 0.5  # Fixed height for simplicity
+                    cam_rot_x = 85/180 * 3.14159265  # Tilt down 80 degrees
+                    cam_rot_z = random.uniform(0, 2 * 3.14159265)  # Rotate around Z axis
+
+                    collision = False
+                    for obj2 in self.objects:
+                        dist = ((cam_x - obj2.obj.location[0]) ** 2 + 
+                            (cam_y - obj2.obj.location[1]) ** 2 + 
+                            (cam_z - obj2.obj.location[2]) ** 2) ** 0.5
+                        # print(f"[DEBUG] Checking collision between {obj1.obj_class} and {obj2.obj_class}: Distance = {dist}, Sum of Radii = {obj1.bounding_radius + obj2.bounding_radius}")
+                        if dist < (1 + obj2.bounding_radius):
+                            collision = True
+                            break
+                    if not collision:
+                        break
+                csvwriter.writerow([frame, cam_x, cam_y, cam_z, cam_rot_x, 0.0, cam_rot_z])
+                self.camera.setKeyframe(position=(cam_x, cam_y, cam_z), rotation=(cam_rot_x, 0.0, cam_rot_z), frame=bpy.context.scene.frame_current)
+        
+
     
     def checkCollisions(self, obj1: Object) -> bool:
         for obj2 in self.objects:
@@ -192,8 +253,9 @@ class Batch:
         
         return False
 
-batch = Batch(objectsPerBatch=10, objectsPerSample=5, samples=10, startFrame=0)
-
+batch = Batch(objectsPerBatch=7, objectsPerSample=5, samples=100, startFrame=0)
+batch.GenerateStationarySceneSamples()
+# batch.GenerateBatch()
 
 # @bpy.app.handlers.persistent
 # def on_scene_loaded(dummy):
