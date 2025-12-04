@@ -22,6 +22,12 @@ class Background:
         y = random.uniform(ymin, ymax)
         return (x, y)
     
+    def is_within_limits(self, x: float, y: float) -> bool:
+        for limits in self.limits:
+            xmin, xmax, ymin, ymax = limits
+            if xmin <= x <= xmax and ymin <= y <= ymax:
+                return True
+        return False
 
 
 # spawn a plane and make it the active object

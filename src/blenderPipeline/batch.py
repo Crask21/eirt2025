@@ -23,7 +23,7 @@ import csv
 
 objectsPath = "G:\\datasets\\eirt_objects"
 backgroundPath = "G:\\datasets\\eirt_background\\background01.usdc"
-savePath = "G:\\datasets\\eirt_output\\stationary_batch01"
+savePath = "G:\\datasets\\eirt_output\\batch03"
 enableCuda = True
 
 
@@ -36,9 +36,10 @@ class Batch:
         else:
             self.objectsPerSample = objectsPerSample
 
-        # -------------------------- loaders and scene setup ------------------------- #
+        # -------------------------- loaders and scene setup -------------------- #
         # self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
-        self.background = Background(backgroundPath, limits=(-5.8, 5.8, -2.4, 2.4))
+        # self.background = Background(backgroundPath, limits=((-5.8, 5.8, -2.4, 2.4))) # Background01.usdc limits
+        self.background = Background(None, limits=((-1.80027, 10.7969, -8.71537, 3.88176), (-17, -1.8, 1.5, 3.2))) # Background02.blend limits
         self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False, includeGaussianSplatts=True)
         self.camera = Camera()
         self.light = Light(light_type='AREA', energy=15000, location=(0, 0, 20), rotation=(0, 0, 0), radius=50.0)
@@ -177,8 +178,9 @@ class Batch:
     def GenerateSample(self):
         
         # Random camera position and rotation within background limits
-        cam_x = random.uniform(self.background.limits[0], self.background.limits[1])
-        cam_y = random.uniform(self.background.limits[2], self.background.limits[3])
+        # cam_x = random.uniform(self.background.limits[0], self.background.limits[1])
+        # cam_y = random.uniform(self.background.limits[2], self.background.limits[3])
+        cam_x, cam_y = self.background.getRandomPosition()
         cam_z = 0.5  # Fixed height for simplicity
         cam_rot_x = 85/180 * 3.14159265  # Tilt down 80 degrees
         cam_rot_z = random.uniform(0, 2 * 3.14159265)  # Rotate around Z axis
@@ -192,7 +194,10 @@ class Batch:
             # TODO: ensure objects are within background limits and no collisions
             i = 0
             while True:
-                r = random.uniform(1.5, 15.0)
+                if obj.is_3dgs == True:
+                    r = random.uniform(3, 15.0)
+                else:
+                    r = random.uniform(1.5, 15.0)   
                 alpha = random.uniform(-self.camera.FOV/2, self.camera.FOV/2) * (3.14159265 / 180.0)  # Convert degrees to radians
                 theta = random.uniform(0, 2*3.14159265)
 
@@ -203,7 +208,7 @@ class Batch:
                 z = 0.0  # Keep Z constant for simplicity
                 # Check for collisions with other objects
                 obj.setPosition((x, y, z))
-                if (self.background.limits[0] <= x <= self.background.limits[1]) and (self.background.limits[2] <= y <= self.background.limits[3]) and not self.checkCollisions(obj):
+                if self.background.is_within_limits(x, y) and not self.checkCollisions(obj):
                     obj.setKeyframe(position=(x, y, z), rotation=(0.0, 0.0, theta), scale=(1.0, 1.0, 1.0), frame=bpy.context.scene.frame_current)
                     break
                 i += 1
@@ -293,7 +298,7 @@ class Batch:
         
         return False
 
-batch = Batch(objectsPerBatch=14, objectsPerSample=5, samples=100, startFrame=0)
+batch = Batch(objectsPerBatch=20, objectsPerSample=7, samples=1000, startFrame=0)
 # batch.GenerateStationarySceneSamples()
 batch.GenerateBatch()
 

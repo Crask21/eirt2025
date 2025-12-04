@@ -7,8 +7,8 @@ from pathlib import Path
 import json
 
 # ------------------------------- ObjectLoader ------------------------------- #
-# print("objectLoader.py loaded")
-
+# shitty_function_name_we_have_to_use_because_kiri_changes_function_names_every_update = bpy.ops.sna.dgs_render_import_ply_bf139 # Works for laptops
+shitty_function_name_we_have_to_use_because_kiri_changes_function_names_every_update = bpy.ops.sna.dgs_render_import_ply_e0a3a
 class ObjectLoader:
     def __init__(self, DatabasePath: str, debug: bool = False, includeGaussianSplatts: bool = False):
         self.allowed_extensions = [".obj", ".stl", "gltf", ".glb"]
@@ -67,7 +67,7 @@ class ObjectLoader:
                         # Store object NAMES before import (not references!)
                         obj_names_before = set(obj.name for obj in bpy.context.scene.objects)
                         
-                        bpy.ops.sna.dgs_render_import_ply_bf139(
+                        shitty_function_name_we_have_to_use_because_kiri_changes_function_names_every_update(
                             'EXEC_DEFAULT', filepath=obj_path)
                         
                         # Track imports and calculate adaptive delay
@@ -160,7 +160,7 @@ class ObjectLoader:
                         # Store object NAMES before import (not references!)
                         obj_names_before = set(obj.name for obj in bpy.context.scene.objects)
                         
-                        bpy.ops.sna.dgs_render_import_ply_bf139(
+                        shitty_function_name_we_have_to_use_because_kiri_changes_function_names_every_update(
                             'EXEC_DEFAULT', filepath=obj_path)
                         
                         # Track imports and calculate adaptive delay

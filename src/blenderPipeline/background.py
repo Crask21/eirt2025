@@ -5,7 +5,7 @@ import random
 
 
 class Background:
-    def __init__(self, backgroundPath: str, limits: tuple[float, float, float, float]):
+    def __init__(self, backgroundPath: str, limits: tuple[tuple[float, float, float, float]]):
         if backgroundPath is not None:
             # ------------------------------------ PLY ----------------------------------- #
             # bpy.ops.sna.dgs_render_import_ply_bf139(filepath=backgroundPath)
@@ -20,13 +20,31 @@ class Background:
         # self.rotation = background.rotation_euler
         # self.scale = background.scale
         self.limits = limits # (xmin, xmax, ymin, ymax) #(-3,3,-5.2,5.2)
+        print(f"Background limits set to: {self.limits}")
 
     
     def getRandomPosition(self) -> tuple[float, float, float]:
-        xmin, xmax, ymin, ymax = self.limits
-        x = random.uniform(xmin, xmax)
-        y = random.uniform(ymin, ymax)
-        return (x, y)
+        if type(self.limits[0]) is not tuple:
+            xmin, xmax, ymin, ymax = self.limits
+            x = random.uniform(xmin, xmax)
+            y = random.uniform(ymin, ymax)
+            return (x, y)
+        else:
+            random_limits = self.limits[random.randint(0, len(self.limits)-1)]
+            xmin, xmax, ymin, ymax = random_limits
+            x = random.uniform(xmin, xmax)
+            y = random.uniform(ymin, ymax)
+            return (x, y)
+    
+    def is_within_limits(self, x: float, y: float) -> bool:
+        if type(self.limits[0]) is not tuple:
+            xmin, xmax, ymin, ymax = self.limits
+            return xmin <= x <= xmax and ymin <= y <= ymax
+        for limits in self.limits:
+            xmin, xmax, ymin, ymax = limits
+            if xmin <= x <= xmax and ymin <= y <= ymax:
+                return True
+        return False
     
 
 
