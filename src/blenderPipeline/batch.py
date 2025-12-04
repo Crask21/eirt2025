@@ -21,9 +21,9 @@ import csv
 # import objectLoader
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
-objectsPath = "F:\\datasets\\eirt_objects"
-backgroundPath = "F:\\datasets\\eirt_background\\background01.usdc"
-savePath = "F:\\datasets\\eirt_output\\stationary_batch01"
+objectsPath = "G:\\datasets\\eirt_objects"
+backgroundPath = "G:\\datasets\\eirt_background\\background01.usdc"
+savePath = "G:\\datasets\\eirt_output\\stationary_batch01"
 enableCuda = True
 
 
