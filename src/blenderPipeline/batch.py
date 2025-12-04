@@ -21,9 +21,9 @@ import csv
 # import objectLoader
 # print(f"[INFO] ObjectLoader file path: {objectLoader.__file__}")
 
-objectsPath = "F:\\datasets\\eirt_objects"
-backgroundPath = "F:\\datasets\\eirt_background\\background01.usdc"
-savePath = "F:\\datasets\\eirt_output\\stationary_batch01"
+objectsPath = "E:\\datasets\\eirt_objects"
+backgroundPath = "E:\\datasets\\eirt_background\\background01.usdc"
+savePath = "E:\\datasets\\eirt_output\\batch03"
 enableCuda = True
 
 
@@ -39,7 +39,7 @@ class Batch:
         # -------------------------- loaders and scene setup ------------------------- #
         # self.background = Background(backgroundPath, limits=(-6, 6, -2.5, 2.5))
         self.background = Background(backgroundPath, limits=(-5.8, 5.8, -2.4, 2.4))
-        self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False, includeGaussianSplatts=False)
+        self.objectLoader = ObjectLoader(DatabasePath=objectsPath, debug=False, includeGaussianSplatts=True)
         self.camera = Camera()
         self.light = Light(light_type='AREA', energy=15000, location=(0, 0, 20), rotation=(0, 0, 0), radius=50.0)
 
@@ -70,15 +70,20 @@ class Batch:
         bpy.context.scene.frame_end = bpy.context.scene.frame_start + samples - 1
 
         tree = bpy.context.scene.node_tree
-        for n in tree.nodes:
-            tree.nodes.remove(n)
+        
+        # Clear nodes safely - iterate in reverse to avoid index issues
+        # Use while loop to avoid holding references during iteration
+        while tree.nodes:
+            tree.nodes.remove(tree.nodes[0])
 
         # Render Layers node
         rl = tree.nodes.new('CompositorNodeRLayers')
+        rl.location = (0, 0)
 
         # # File Outputs
         composite_out = tree.nodes.new('CompositorNodeOutputFile')
         composite_out.base_path = os.path.join(savePath, "rgb")
+        composite_out.location = (400, 200)
         tree.links.new(rl.outputs['Image'], composite_out.inputs['Image'])
 
         # Enable depth pass
@@ -87,9 +92,12 @@ class Batch:
         # depth_out.format.color_depth = '16'
 
         depth_out.base_path = os.path.join(savePath, "depth")
+        depth_out.location = (600, 0)
+        tree.links.new(rl.outputs['Depth'], depth_out.inputs['Image'])
+
+        
         depth_out.format.file_format = "PNG"
         depth_out.format.color_depth = '16'
-        tree.links.new(rl.outputs['Depth'], depth_out.inputs['Image'])
 
         # mask2_out = tree.nodes.new('CompositorNodeComposite')
         # tree.links.new(rl.outputs['IndexOB'], mask2_out.inputs['Image'])
@@ -97,23 +105,55 @@ class Batch:
         # bpy.context.scene.render.filepath = os.path.join(savePath, "mask2")
         # bpy.context.scene.render.image_settings.file_format = 'JPEG'
 
-        mask_out = tree.nodes.new('CompositorNodeOutputFile')
-        mask_out.base_path = os.path.join(savePath, "mask")
+
+        
         # Connect RGB
 
+        # ---------------------- Mask pipeline with Dilate/Erode --------------------- #
+        # Add Dilate node for mask output
+        dilate_mask = tree.nodes.new('CompositorNodeDilateErode')
+        dilate_mask.mode = 'STEP'
+        dilate_mask.distance = 10  # Positive for dilate
+        dilate_mask.location = (400, -200)
+
+        # Add Erode node for mask output
+        erode_mask = tree.nodes.new('CompositorNodeDilateErode')
+        erode_mask.mode = 'STEP'
+        erode_mask.distance = -10  # Negative for erode
+        erode_mask.location = (600, -200)
+
+        # Multiply node for mask output
         multiplier = tree.nodes.new('CompositorNodeMath')
         multiplier.operation = 'MULTIPLY'
         multiplier.inputs[1].default_value = 0.1  # Scale factor
-        tree.links.new(rl.outputs['IndexOB'], multiplier.inputs[0])
+        multiplier.location = (800, -200)
+
+        # Mask output node
+        mask_out = tree.nodes.new('CompositorNodeOutputFile')
+        mask_out.base_path = os.path.join(savePath, "mask_raw")
+        mask_out.format.file_format = "JPEG"
+        mask_out.format.color_mode = 'BW'
+        mask_out.format.quality = 100
+        mask_out.location = (1000, -200)
+
+        # Link nodes
+        tree.links.new(rl.outputs['IndexOB'], dilate_mask.inputs['Mask'])
+        tree.links.new(dilate_mask.outputs['Mask'], erode_mask.inputs['Mask'])
+        tree.links.new(erode_mask.outputs['Mask'], multiplier.inputs[0])
         tree.links.new(multiplier.outputs['Value'], mask_out.inputs['Image'])
 
+        # Add viewer node for debugging
+        viewer_node = tree.nodes.new('CompositorNodeViewer')
+        viewer_node.location = (400, 300)
+        tree.links.new(rl.outputs['Image'], viewer_node.inputs['Image'])
+
+        # Depth pipeline
         multiplier2 = tree.nodes.new('CompositorNodeMath')
         multiplier2.operation = 'MULTIPLY'
         multiplier2.inputs[1].default_value = 0.05  # Scale factor
+        multiplier2.location = (400, 0)
         tree.links.new(rl.outputs['Depth'], multiplier2.inputs[0])
         tree.links.new(multiplier2.outputs['Value'], depth_out.inputs['Image'])
-
-        # Connect object index pass
 
         
 
@@ -253,12 +293,12 @@ class Batch:
         
         return False
 
-batch = Batch(objectsPerBatch=7, objectsPerSample=5, samples=100, startFrame=0)
-batch.GenerateStationarySceneSamples()
-# batch.GenerateBatch()
+batch = Batch(objectsPerBatch=14, objectsPerSample=5, samples=100, startFrame=0)
+# batch.GenerateStationarySceneSamples()
+batch.GenerateBatch()
 
 # @bpy.app.handlers.persistent
-# def on_scene_loaded(dummy):
+# def on_scene_loaded(dummy):   
 #     print("[INFO] Scene loaded, initializing batch generation...")
 
 # bpy.app.handlers.load_post.append(on_scene_loaded)
