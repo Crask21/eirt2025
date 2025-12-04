@@ -1,5 +1,7 @@
 import bpy
 import os
+import time
+import gc
 from pathlib import Path
 # bpy.ops.preferences.addon_enable(module="kiri_3dgs")
 import json
@@ -14,6 +16,11 @@ class ObjectLoader:
             self.allowed_extensions.append(".ply")
         self.DatabasePath = Path(DatabasePath)
         self.debug = debug
+        
+        # Track 3DGS imports for memory management
+        self._3dgs_import_count = 0
+        self._total_gaussians_loaded = 0
+        
         if debug:
             print(f"[INFO] DatabasePath set to: {self.DatabasePath}")
 
@@ -55,18 +62,85 @@ class ObjectLoader:
                 elif obj_path.lower().endswith('.ply'):
                     # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
                     try:
+                        obj_ply = []
+                        # --- Spawn two objects --- #
+                        # Store object NAMES before import (not references!)
+                        obj_names_before = set(obj.name for obj in bpy.context.scene.objects)
+                        
                         bpy.ops.sna.dgs_render_import_ply_bf139(
                             'EXEC_DEFAULT', filepath=obj_path)
-                    except:
-                        # Fall back to regular PLY import if not a 3DGS file
+                        
+                        # Track imports and calculate adaptive delay
+                        self._3dgs_import_count += 1
+                        
+                        # CRITICAL: Adaptive delay based on accumulated load
+                        # More objects loaded = longer delay needed for memory management
+                        base_delay = 0.15  # Base 150ms
+                        accumulated_delay = min(self._3dgs_import_count * 0.05, 0.5)  # Max 500ms
+                        total_delay = base_delay + accumulated_delay
+                        
+                        if self.debug:
+                            print(f"[DEBUG] 3DGS import #{self._3dgs_import_count}, waiting {total_delay:.2f}s for processing")
+                        
+                        time.sleep(total_delay)
+                        
+                        # Force garbage collection after delay to free memory
+                        gc.collect()
+                        
+                        # CRITICAL: Use name-based lookup instead of direct references
+                        # This avoids holding stale references to objects while Kiri addon processes them
+                        new_obj_names = [obj.name for obj in bpy.context.scene.objects if obj.name not in obj_names_before]
+                        if not new_obj_names:
+                            raise ValueError("No objects created by 3DGS import")
+                        
+                        # Store the NAME, not the object reference yet
+                        new_obj_name = new_obj_names[0]
+                        
+                        # Small additional delay to ensure Kiri addon finishes adding modifiers
+                        time.sleep(0.05)
+                        
+                        # NOW get the object reference after Kiri is done
+                        new_obj = bpy.data.objects.get(new_obj_name)
+                        if not new_obj:
+                            raise ValueError(f"3DGS object '{new_obj_name}' disappeared after import")
+                        
+                        obj_ply.append(new_obj)
+                        
+                        print(f"[INFO] ✓ Loaded 3DGS object '{new_obj.name}' (import #{self._3dgs_import_count})")
+                        
                         bpy.ops.wm.ply_import(filepath=obj_path)
+                        # Get the latest imported object safely
+                        imported_objects = [obj for obj in bpy.context.selected_objects]
+                        if not imported_objects:
+                            raise ValueError("No objects selected after PLY import")
+                        shadow = imported_objects[0]
+                        shadow.name = obj_ply[0].name + "_shadow"
+                        obj_ply.append(shadow)
+
+                        return obj_ply, class_name, self.class_id_dict[class_name]
+                    except Exception as e:
+                        # Fall back to regular PLY import if not a 3DGS file
+                        print(f"[ERROR] Failed to import PLY file with 3DGS: {obj_path}. Error: {e}")
+                        print(f"[INFO] Attempting standard PLY import...")
+                        try:
+                            bpy.ops.wm.ply_import(filepath=obj_path)
+                            if bpy.context.selected_objects:
+                                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name]
+                            else:
+                                raise ValueError(f"No object selected after PLY import: {obj_path}")
+                        except Exception as e2:
+                            raise ValueError(f"Failed to import PLY file: {obj_path}. Error: {e2}")
                 elif obj_path.lower().endswith('.gltf') or obj_path.lower().endswith('.glb'):
                     bpy.ops.import_scene.gltf(filepath=obj_path)
                 if self.debug:
                     print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
                     print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
+                
+                # Verify object was imported successfully
+                if not bpy.context.selected_objects:
+                    raise ValueError(f"Failed to import object: {obj_path}. No objects selected after import.")
 
-                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name] if bpy.context.selected_objects else None
+                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name]
 
         elif class_name is None and ObjIndex is not None:
             if 0 <= ObjIndex < len(self.AllObjects):
@@ -81,17 +155,84 @@ class ObjectLoader:
                 elif obj_path.lower().endswith('.ply'):
                     # Check if this is a 3DGS PLY file by trying the kiri_3dgs importer first
                     try:
+                        obj_ply = []
+                        # --- Spawn two objects --- #
+                        # Store object NAMES before import (not references!)
+                        obj_names_before = set(obj.name for obj in bpy.context.scene.objects)
+                        
                         bpy.ops.sna.dgs_render_import_ply_bf139(
                             'EXEC_DEFAULT', filepath=obj_path)
-                    except:
-                        # Fall back to regular PLY import if not a 3DGS file
+                        
+                        # Track imports and calculate adaptive delay
+                        self._3dgs_import_count += 1
+                        
+                        # CRITICAL: Adaptive delay based on accumulated load
+                        # More objects loaded = longer delay needed for memory management
+                        base_delay = 0.15  # Base 150ms
+                        accumulated_delay = min(self._3dgs_import_count * 0.05, 0.5)  # Max 500ms
+                        total_delay = base_delay + accumulated_delay
+                        
+                        if self.debug:
+                            print(f"[DEBUG] 3DGS import #{self._3dgs_import_count}, waiting {total_delay:.2f}s for processing")
+                        
+                        time.sleep(total_delay)
+                        
+                        # Force garbage collection after delay to free memory
+                        gc.collect()
+                        
+                        # CRITICAL: Use name-based lookup instead of direct references
+                        # This avoids holding stale references to objects while Kiri addon processes them
+                        new_obj_names = [obj.name for obj in bpy.context.scene.objects if obj.name not in obj_names_before]
+                        if not new_obj_names:
+                            raise ValueError("No objects created by 3DGS import")
+                        
+                        # Store the NAME, not the object reference yet
+                        new_obj_name = new_obj_names[0]
+                        
+                        # Small additional delay to ensure Kiri addon finishes adding modifiers
+                        time.sleep(0.05)
+                        
+                        # NOW get the object reference after Kiri is done
+                        new_obj = bpy.data.objects.get(new_obj_name)
+                        if not new_obj:
+                            raise ValueError(f"3DGS object '{new_obj_name}' disappeared after import")
+                        
+                        obj_ply.append(new_obj)
+                        
                         bpy.ops.wm.ply_import(filepath=obj_path)
+                        # Get the latest imported object safely
+                        imported_objects = [obj for obj in bpy.context.selected_objects]
+                        if not imported_objects:
+                            raise ValueError("No objects selected after PLY import")
+                        shadow = imported_objects[0]
+                        shadow.name = obj_ply[0].name + "_shadow"
+                        obj_ply.append(shadow)
+
+
+
+                        return obj_ply, class_name, self.class_id_dict[class_name]
+                    except Exception as e:
+                        # Fall back to regular PLY import if not a 3DGS file
+                        print(f"[ERROR] Failed to import PLY file with 3DGS: {obj_path}. Error: {e}")
+                        print(f"[INFO] Attempting standard PLY import...")
+                        try:
+                            bpy.ops.wm.ply_import(filepath=obj_path)
+                            if bpy.context.selected_objects:
+                                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name]
+                            else:
+                                raise ValueError(f"No object selected after PLY import: {obj_path}")
+                        except Exception as e2:
+                            raise ValueError(f"Failed to import PLY file: {obj_path}. Error: {e2}")
                 elif obj_path.lower().endswith('.gltf') or obj_path.lower().endswith('.glb'):
                     bpy.ops.import_scene.gltf(filepath=obj_path)
                 if self.debug:
                     print(f"[INFO] Imported object: {obj_path} from class '{class_name}'")
                     print(f"[INFO] Assigned class_id: {self.class_id_dict[class_name]}")
-                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name] if bpy.context.selected_objects else None
+                # Encode filepath in the bpy object
+                if not bpy.context.selected_objects:
+                    raise ValueError(f"Failed to import object: {obj_path}. No objects selected after import.")
+                bpy.context.selected_objects[0]["obj_path"] = obj_path
+                return bpy.context.selected_objects[0], class_name, self.class_id_dict[class_name]
         raise ValueError("Invalid ObjIndex or class_name")
 
     def organize_objects_by_class(self) -> dict[str, list[Path]]:
@@ -259,14 +400,24 @@ class ObjectLoader:
 # ---------------------------------------------------------------------------- #
 
 # Example usage
-# path = 'F:\\datasets\\eirt_objects'
-# object_loader = ObjectLoader(path, True)
+# path = 'E:\\datasets\\eirt_objects'
+# object_loader = ObjectLoader(path, True, includeGaussianSplatts=True)
 # objects = object_loader.FindAllObjects()
-# print(f"Total objects found: {len(objects)}")
-# print("objects by class:")
-# for obj in objects:
-#     print(f" - {obj}")
-# object_loader.CreateObject(ObjIndex=0, class_name="person")
+# # print(f"Total objects found: {len(objects)}")
+# # print("objects by class:")
+# # for obj in objects:
+# #     print(f" - {obj}")
+# obj, class_name, class_id = object_loader.CreateObject(ObjIndex=2, class_name="chair")
+
+# import sys
+# from os.path import dirname
+# sys.path.append(dirname(__file__))
+# from object import Object
+
+# obj = Object(obj, class_id, class_name)
+
+# obj.setKeyframe((1,2,3), (0,0,0), (1,1,1), frame=10)
+# obj.setKeyframe((3,2,1), (0,0,0), (1,1,1), frame=20)
 
 # object_loader.UpdateAllCameraEnabledObjects()
 # object_loader.CreateObject(ObjIndex=2, class_name="chair")
