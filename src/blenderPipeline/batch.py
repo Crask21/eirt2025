@@ -23,7 +23,7 @@ import csv
 
 objectsPath = "G:\\datasets\\eirt_objects"
 backgroundPath = "G:\\datasets\\eirt_background\\background01.usdc"
-savePath = "G:\\datasets\\eirt_output\\batch03"
+savePath = "G:\\datasets\\eirt_output\\stationary_batch02"
 enableCuda = True
 
 
@@ -52,10 +52,16 @@ class Batch:
         default_spawn_position = (0.0, 0.0, -10.0)
         total_dataset_objects = self.objectLoader.TotalObjects
 
-        print(f"[INFO] Total objects in dataset: {total_dataset_objects}")
-        for _ in range(self.objectsPerBatch):
-            rand_index = random.randint(0, total_dataset_objects - 1)
-            obj, class_name, class_id = self.objectLoader.CreateObject(rand_index)
+        # print(f"[INFO] Total objects in dataset: {total_dataset_objects}")
+        # for _ in range(self.objectsPerBatch):
+        #     rand_index = random.randint(0, total_dataset_objects - 1)
+        #     obj, class_name, class_id = self.objectLoader.CreateObject(rand_index)
+        #     self.objects.append(Object(obj, class_id, class_name, spawn_position=default_spawn_position))
+
+        
+        import_list = [[0, "person"], [1, "chair"], [7, "chair"], [8, "chair"], [0, "table"], [1, "table"], [2, "table"] ]
+        for item in import_list:
+            obj, class_name, class_id = self.objectLoader.CreateObject(item[0], class_name=item[1])
             self.objects.append(Object(obj, class_id, class_name, spawn_position=default_spawn_position))
 
 
@@ -236,8 +242,7 @@ class Batch:
             # TODO: ensure objects are within background limits and no collisions
             i = 0
             while True:
-                x = random.uniform(self.background.limits[0], self.background.limits[1])
-                y = random.uniform(self.background.limits[2], self.background.limits[3])
+                x,y = self.background.getRandomPosition()
                 z = 0.0  # Keep Z constant for simplicity
                 theta = random.uniform(0, 2*3.14159265)
                 # Check for collisions with other objects
@@ -264,8 +269,7 @@ class Batch:
 
                 while True:
                     # Random camera position and rotation within background limits
-                    cam_x = random.uniform(self.background.limits[0], self.background.limits[1])
-                    cam_y = random.uniform(self.background.limits[2], self.background.limits[3])
+                    cam_x, cam_y = self.background.getRandomPosition()
                     cam_z = 0.5  # Fixed height for simplicity
                     cam_rot_x = 85/180 * 3.14159265  # Tilt down 80 degrees
                     cam_rot_z = random.uniform(0, 2 * 3.14159265)  # Rotate around Z axis
@@ -298,9 +302,9 @@ class Batch:
         
         return False
 
-batch = Batch(objectsPerBatch=20, objectsPerSample=7, samples=1000, startFrame=0)
-# batch.GenerateStationarySceneSamples()
-batch.GenerateBatch()
+batch = Batch(objectsPerBatch=10, objectsPerSample=4, samples=100, startFrame=000)
+batch.GenerateStationarySceneSamples()
+# batch.GenerateBatch()
 
 # @bpy.app.handlers.persistent
 # def on_scene_loaded(dummy):   
