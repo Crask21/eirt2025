@@ -23,14 +23,19 @@ class Background:
         print(f"Background limits set to: {self.limits}")
 
     
-    def getRandomPosition(self) -> tuple[float, float, float]:
+    def getRandomPosition(self) -> tuple[float, float]:
         if type(self.limits[0]) is not tuple:
             xmin, xmax, ymin, ymax = self.limits
             x = random.uniform(xmin, xmax)
             y = random.uniform(ymin, ymax)
             return (x, y)
         else:
-            random_limits = self.limits[random.randint(0, len(self.limits)-1)]
+            probability = 0.20
+            if random.random() > probability:
+                random_limits = self.limits[0]
+            else:
+                random_limits = self.limits[1]
+            # random_limits = self.limits[random.randint(0, len(self.limits)-1)]
             xmin, xmax, ymin, ymax = random_limits
             x = random.uniform(xmin, xmax)
             y = random.uniform(ymin, ymax)
