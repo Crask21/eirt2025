@@ -2,6 +2,8 @@
 Predictor for inference on new images
 """
 
+print()
+
 import torch
 import cv2
 import numpy as np
